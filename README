@@ -1,0 +1,23 @@
+Usage: jog patt file-or-directory[...]
+       jog [option]
+
+View Janet project docstrings from the command line.
+
+  -h, --help                   show this output
+
+  --bash-completion            output bash-completion bits
+  --fish-completion            output fish-completion bits
+  --zsh-completion             output zsh-completion bits
+  --raw-all                    show all names for completion
+
+With patt and one or more file-or-directory paths, search for
+docstrings in paths.
+
+At minimum, patt can be an identifier for something defined
+in one or more .janet files.
+
+Directories are searched recursively for .janet files.
+A file that does not have a .janet extension may also be
+searched if it appears to have an appropriate shebang line.
+
+With zero or insufficient arguments, show this output.
