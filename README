@@ -1,0 +1,27 @@
+Usage: jog [<patt>] <file-or-dir>...
+       jog [-h|--help]
+
+View Janet project docstrings from the command line.
+
+Parameters:
+
+  <patt>                 string to query with
+  <file-or-dir>          path to file or directory
+
+Options:
+
+  -h, --help                   show this output
+
+Examples:
+
+  Show docstring(s) of `zip` in `jeat/zipper.janet`:
+
+  $ jog zip jeat/zipper.janet
+
+  Show docstring(s) of `zipper` under `./`:
+
+  $ jog zipper .
+
+  Show all docstring(s) under `./`:
+
+  $ jog .
