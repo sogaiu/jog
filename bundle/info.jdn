@@ -17,7 +17,11 @@
            ["make-and-run-tests.janet" "jeat/"]
            ["to-test.janet" "jeat/"]
            ["zipper.janet" "jeat/"]
-           ["trigger-jeat.janet" "test/"]]}]
+           ["trigger-jeat.janet" "test/"]]}
+  {:name "jell"
+   :url "https://github.com/sogaiu/jell"
+   :tag "3d8e2284aa038b2a69056027b946b2c2517bc026"
+   :paths [["jell" "bin/"]]}]
 
  :binscripts
  [{:main "jog"

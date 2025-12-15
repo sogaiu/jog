@@ -57,6 +57,227 @@
   #
   (merge opts default-opts))
 
+(defn u/maybe-dump
+  [& args]
+  (assertf (even? (length args))
+           "expected even number or args: %n" args)
+  #
+  (when (os/getenv "VERBOSE")
+    (each [name value] (partition 2 args)
+      (cond
+        (dictionary? value)
+        (do
+          (pp [name])
+          (eachp [k v] value
+            (printf "%n: %n" k v)))
+        #
+        (indexed? value)
+        (do
+          (pp [name])
+          (each v value
+            (pp v)))
+        #
+        (pp [name value])))
+    (print)))
+
+########################################################################
+
+# XXX: more edge cases to identify?
+#      * consecutive separator handling matches
+#        posix more than python / spork/path
+(defn u/file-dir-path
+  [path]
+  (when (empty? path)
+    (break path))
+  #
+  (def os (or (dyn :os-override) (os/which)))
+  (def bs-land (or (= :windows os) (= :mingw os)))
+  (def sep (if bs-land `\` "/"))
+  (if bs-land
+    (when (peg/match ~(sequence :a `:\` -1) path)
+      (break path))
+    (when (= path "/")
+      (break path)))
+  #
+  (def rev-path (string/reverse path))
+  (def last-sep-idx (string/find sep rev-path))
+  (def candidate
+    (if-not last-sep-idx
+      path
+      (string/slice path 0
+                    (dec (- (length path) last-sep-idx)))))
+  #
+  (if (not (string/find sep candidate))
+    (string candidate sep)
+    candidate))
+
+(comment
+
+  # an actual case we want to handle
+  (u/file-dir-path "/etc/motd")
+  # =>
+  "/etc"
+
+  # another actual case we want to handle
+  (let [old (dyn :os-override)]
+    (setdyn :os-override :windows)
+    (defer (setdyn :os-override old)
+      (u/file-dir-path `C:\Windows\System32\taskmgr.exe`)))
+  # =>
+  `C:\Windows\System32`
+
+  # everything below here are edge cases we don't care about...
+
+  (u/file-dir-path "")
+  # =>
+  ""
+
+  (u/file-dir-path "/")
+  # =>
+  "/"
+
+  # differs from python and spork
+  (u/file-dir-path "//")
+  # =>
+  "/"
+
+  (u/file-dir-path "/etc")
+  # =>
+  "/"
+
+  # sames as python's os.path.dirname, different from unix dirname
+  (u/file-dir-path "/etc/")
+  # =>
+  "/etc"
+
+  (let [old (dyn :os-override)]
+    (setdyn :os-override :windows)
+    (defer (setdyn :os-override old)
+      (u/file-dir-path `C:\Windows`)))
+  # =>
+  `C:\`
+
+  (let [old (dyn :os-override)]
+    (setdyn :os-override :windows)
+    (defer (setdyn :os-override old)
+      (u/file-dir-path `A:\`)))
+  # =>
+  `A:\`
+
+  (let [old (dyn :os-override)]
+    (setdyn :os-override :windows)
+    (defer (setdyn :os-override old)
+      (u/file-dir-path `Z:\`)))
+  # =>
+  `Z:\`
+
+  )
+
+(defn u/split-path
+  [path]
+  (def fd-path (u/file-dir-path path))
+  (when (empty? path)
+    (break @["" ""]))
+  #
+  (def idx (inc (string/find fd-path path)))
+  #
+  @[fd-path
+    (string/slice path (+ idx (length fd-path)) -1)])
+
+(comment
+
+  # really the only case we care about
+  (u/split-path "/etc/motd")
+  # =>
+  @["/etc" "motd"]
+
+  )
+
+(defn u/abspath?
+  [path &opt bs-land]
+  (def os (os/which))
+  (default bs-land (or (= :windows os) (= :mingw os)))
+  (if bs-land
+    # https://stackoverflow.com/a/23968430
+    # https://learn.microsoft.com/en-us/dotnet/standard/io/file-path-formats
+    (truthy? (peg/match ~(sequence :a `:\`) path))
+    (string/has-prefix? "/" path)))
+
+(defn u/touch
+  [path]
+  (with [f (file/open path :w+)]
+    true))
+
+
+# XXX: a hack -- could reuse parts of a better peg
+(def l/import-grammar
+  ~(sequence :s* "("
+             :s* "import"
+             :s+
+             # target item
+             (choice (sequence `"`
+                               (capture
+                                 (some
+                                   (if-not (set ` \t\r\n\0\f\v"`) 1)))
+                               `"`)
+                     (capture (some (if-not (set " \t\r\n\0\f\v)") 1))))
+             # the rest
+             (choice ")"
+                     (sequence :s+
+                               (any (if-not ")" 1))
+                               ")"))))
+
+(comment
+
+  (peg/match l/import-grammar "(import ./pegs)")
+  # =>
+  @["./pegs"]
+
+  (peg/match l/import-grammar `(import ./pegs :prefix "")`)
+  # =>
+  @["./pegs"]
+
+  (peg/match l/import-grammar `(import "./pegs")`)
+  # =>
+  @["./pegs"]
+
+  )
+
+# create single file of source from a starting janet file by:
+#
+# 1. starting at in-path, read line by line recording the content in
+#    out-path unless the line is an import form.
+#
+# 2. if an import form is encountered, don't record the line in
+#    out-path, instead if the file it refers to has not been visited,
+#    visit the file and continue recursively.
+(defn l/link
+  [in-path out-path]
+  # assumes paths are full paths...
+  # XXX: could check if we had abspath?
+  (def [dir-path file-path] (u/split-path in-path))
+  # remember which files have already been "imported"
+  (def seen @{})
+  # for restoring the current working directory (cwd)
+  (def old-dir (os/cwd))
+  # need to operate relative to in-path's dir
+  (os/cd dir-path)
+  #
+  (defer (os/cd old-dir)
+    (with [out-file (file/open out-path :w)]
+      (defn helper
+        [a-path]
+        (when (in seen a-path) (break))
+        #
+        (put seen a-path true)
+        (with [in-file (file/open a-path :r)]
+          (loop [line :iterate (file/read in-file :line)]
+            (if-let [[name-path] (peg/match l/import-grammar line)]
+              (helper (string name-path ".janet"))
+              (file/write out-file line)))))
+      (helper file-path)
+      (file/flush out-file))))
+
 # bl - begin line
 # bc - begin column
 # el - end line
@@ -2211,235 +2432,6 @@
 
   )
 
-(defn u/maybe-dump
-  [& args]
-  (assertf (even? (length args))
-           "expected even number or args: %n" args)
-  #
-  (when (os/getenv "VERBOSE")
-    (each [name value] (partition 2 args)
-      (cond
-        (dictionary? value)
-        (do
-          (pp [name])
-          (eachp [k v] value
-            (printf "%n: %n" k v)))
-        #
-        (indexed? value)
-        (do
-          (pp [name])
-          (each v value
-            (pp v)))
-        #
-        (pp [name value])))
-    (print)))
-
-########################################################################
-
-# XXX: more edge cases to identify?
-#      * consecutive separator handling matches
-#        posix more than python / spork/path
-(defn u/file-dir-path
-  [path]
-  (when (empty? path)
-    (break path))
-  #
-  (def os (or (dyn :os-override) (os/which)))
-  (def bs-land (or (= :windows os) (= :mingw os)))
-  (def sep (if bs-land `\` "/"))
-  (if bs-land
-    (when (peg/match ~(sequence :a `:\` -1) path)
-      (break path))
-    (when (= path "/")
-      (break path)))
-  #
-  (def rev-path (string/reverse path))
-  (def last-sep-idx (string/find sep rev-path))
-  (def candidate
-    (if-not last-sep-idx
-      path
-      (string/slice path 0
-                    (dec (- (length path) last-sep-idx)))))
-  #
-  (if (not (string/find sep candidate))
-    (string candidate sep)
-    candidate))
-
-(comment
-
-  # an actual case we want to handle
-  (u/file-dir-path "/etc/motd")
-  # =>
-  "/etc"
-
-  # another actual case we want to handle
-  (let [old (dyn :os-override)]
-    (setdyn :os-override :windows)
-    (defer (setdyn :os-override old)
-      (u/file-dir-path `C:\Windows\System32\taskmgr.exe`)))
-  # =>
-  `C:\Windows\System32`
-
-  # everything below here are edge cases we don't care about...
-
-  (u/file-dir-path "")
-  # =>
-  ""
-
-  (u/file-dir-path "/")
-  # =>
-  "/"
-
-  # differs from python and spork
-  (u/file-dir-path "//")
-  # =>
-  "/"
-
-  (u/file-dir-path "/etc")
-  # =>
-  "/"
-
-  # sames as python's os.path.dirname, different from unix dirname
-  (u/file-dir-path "/etc/")
-  # =>
-  "/etc"
-
-  (let [old (dyn :os-override)]
-    (setdyn :os-override :windows)
-    (defer (setdyn :os-override old)
-      (u/file-dir-path `C:\Windows`)))
-  # =>
-  `C:\`
-
-  (let [old (dyn :os-override)]
-    (setdyn :os-override :windows)
-    (defer (setdyn :os-override old)
-      (u/file-dir-path `A:\`)))
-  # =>
-  `A:\`
-
-  (let [old (dyn :os-override)]
-    (setdyn :os-override :windows)
-    (defer (setdyn :os-override old)
-      (u/file-dir-path `Z:\`)))
-  # =>
-  `Z:\`
-
-  )
-
-(defn u/split-path
-  [path]
-  (def fd-path (u/file-dir-path path))
-  (when (empty? path)
-    (break @["" ""]))
-  #
-  (def idx (inc (string/find fd-path path)))
-  #
-  @[fd-path
-    (string/slice path (+ idx (length fd-path)) -1)])
-
-(comment
-
-  # really the only case we care about
-  (u/split-path "/etc/motd")
-  # =>
-  @["/etc" "motd"]
-
-  )
-
-(defn u/abspath?
-  [path &opt bs-land]
-  (def os (os/which))
-  (default bs-land (or (= :windows os) (= :mingw os)))
-  (if bs-land
-    # https://stackoverflow.com/a/23968430
-    # https://learn.microsoft.com/en-us/dotnet/standard/io/file-path-formats
-    (truthy? (peg/match ~(sequence :a `:\`) path))
-    (string/has-prefix? "/" path)))
-
-(defn u/touch
-  [path]
-  (with [f (file/open path :w+)]
-    true))
-
-
-# XXX: a hack -- could reuse parts of a better peg
-(def l/import-grammar
-  ~(sequence :s* "("
-             :s* "import"
-             :s+
-             # target item
-             (choice (sequence `"`
-                               (capture
-                                 (some
-                                   (if-not (set ` \t\r\n\0\f\v"`) 1)))
-                               `"`)
-                     (capture (some (if-not (set " \t\r\n\0\f\v)") 1))))
-             # the rest
-             (choice ")"
-                     (sequence :s+
-                               (any (if-not ")" 1))
-                               ")"))))
-
-(comment
-
-  (peg/match l/import-grammar "(import ./pegs)")
-  # =>
-  @["./pegs"]
-
-  (peg/match l/import-grammar `(import ./pegs :prefix "")`)
-  # =>
-  @["./pegs"]
-
-  (peg/match l/import-grammar `(import "./pegs")`)
-  # =>
-  @["./pegs"]
-
-  )
-
-# create single file of source from a starting janet file by:
-#
-# 1. starting at in-path, read line by line recording the content in
-#    out-path unless the line is an import form.
-#
-# 2. if an import form is encountered, don't record the line in
-#    out-path, instead if the file it refers to has not been visited,
-#    visit the file and continue recursively.
-(defn l/link
-  [in-path out-path]
-  # assumes paths are full paths...
-  # XXX: could check if we had abspath?
-  (def [dir-path file-path] (u/split-path in-path))
-  # remember which files have already been "imported"
-  (def seen @{})
-  # for restoring the current working directory (cwd)
-  (def old-dir (os/cwd))
-  # need to operate relative to in-path's dir
-  (os/cd dir-path)
-  #
-  (defer (os/cd old-dir)
-    (with [out-file (file/open out-path :w)]
-      (defn helper
-        [a-path]
-        (when (in seen a-path) (break))
-        #
-        (put seen a-path true)
-        (with [in-file (file/open a-path :r)]
-          (loop [line :iterate (file/read in-file :line)]
-            (if-let [[name-path] (peg/match l/import-grammar line)]
-              (helper (string name-path ".janet"))
-              (file/write out-file line)))))
-      (helper file-path)
-      (file/flush out-file))))
-
-
-# XXX: defglobal and varglobal...
-(def p/def-things
-  {"def" 1 "def-" 1
-   "var" 1 "var-" 1
-   "defn" 1 "defn-" 1
-   "defmacro" 1 "defmacro-" 1
-   "varfn" 1})
 
 (defn p/valid-sym-name?
   [sym-name]
@@ -2590,12 +2582,10 @@
   (var cur-zloc nil)
   #
   (set cur-zloc
-       (try
-         (j/zip-down tree)
-         ([e]
-           (eprintf e)
-           (eprintf "failed to create zipper from file: %s" in-path)
-           (os/exit 1))))
+       (try (j/zip-down tree)
+         ([e] (eprintf e)
+              (eprintf "failed to create zipper from file: %s" in-path)
+              (os/exit 1))))
   # find top-level symbols
   (def sym-zlocs (p/find-top-level-syms cur-zloc))
   (def sym-bits (reduce p/analyze-defish @[] sym-zlocs))
@@ -2615,54 +2605,36 @@
   #
   (spit out-path (j/gen (j/root cur-zloc))))
 
+(defn p/prepare-imported
+  [in-dir obj-path prefixes opts]
+  (def {:sep sep} opts)
+  (eachp [path prefix] prefixes
+    (def fname (string path ".janet"))
+    (def ipath (string in-dir sep fname))
+    (def opath (string obj-path sep fname))
+    (p/prepare prefix ipath opath)))
 
-(def usage
-  ``
-  Usage: jell [<start-path> [<out-path> [<obj-path>]]]
-         jell [-h|--help]
+(defn p/prepare-start
+  [start-path in-name obj-path opts]
+  (def {:sep sep :start-file-perm perm} opts)
+  (def in-src (slurp start-path))
+  (def in-tree (j/par in-src))
+  (var cur-zloc nil)
+  (set cur-zloc
+       (try (j/zip-down in-tree)
+         ([e] (eprintf e)
+              (eprintf "zipper creation failed for file: %s" start-path)
+              (os/exit 1))))
+  (def in-out-path (string obj-path sep in-name))
+  (spit in-out-path
+        (j/gen (j/root (p/tweak-import-forms cur-zloc))))
+  (when perm
+    (os/chmod in-out-path perm))
+  #
+  in-out-path)
 
-  Create a single `.janet` file from multiple files.
 
-  Parameters:
-
-    <start-path>                 path to starting file
-    <out-path>                   path to output file
-    <obj-path>                   path to temp directory
-
-  Defaults:
-
-    <start-path>                 src/main.janet
-    <out-path>                   j.out
-    <obj-path>                   obj
-
-  Options:
-
-    -h, --help                   show this output
-
-  Configuration (optional):
-
-    `.jell.jdn`                  configuration file
-
-  Example Invocations:
-
-    Create a single `.janet` file from multiple files:
-
-    $ jell src/main.janet output.janet
-
-    With a suitable configuration file:
-
-    $ jell
-
-  Example `.jell.jdn` content:
-
-    {:start-path "src/main.janet"
-     :out-path "j.out"
-     :obj-path "obj"}
-  ``)
-
-########################################################################
-
-(defn is-import?
+(defn s/is-import?
   [zloc]
   (def node (j/node zloc))
   (when (not= :tuple (get node 0))
@@ -2703,7 +2675,7 @@
    [:whitespace @{:bc 23 :bl 1 :ec 24 :el 1} " "]
    [:string @{:bc 24 :bl 1 :ec 26 :el 1} `""`]]
 
-  (is-import? zloc)
+  (s/is-import? zloc)
   # =>
   true
 
@@ -2721,13 +2693,13 @@
    [:whitespace @{:bc 20 :bl 1 :ec 21 :el 1} " "]
    [:symbol @{:bc 21 :bl 1 :ec 22 :el 1} "a"]]
 
-  (is-import? zloc)
+  (s/is-import? zloc)
   # =>
   true
 
   )
 
-(defn analyze-import
+(defn s/analyze-import
   [node]
   (def parsed
     (try (parse (j/gen node))
@@ -2740,7 +2712,7 @@
 
 (comment
 
-  (analyze-import [:tuple @{:bc 1 :bl 1 :ec 27 :el 1}
+  (s/analyze-import [:tuple @{:bc 1 :bl 1 :ec 27 :el 1}
                    [:symbol @{:bc 2 :bl 1 :ec 8 :el 1} "import"]
                    [:whitespace @{:bc 8 :bl 1 :ec 9 :el 1} " "]
                    [:symbol @{:bc 9 :bl 1 :ec 15 :el 1} "./args"]
@@ -2751,7 +2723,7 @@
   # =>
   @{:path "./args" :prefix ""}
 
-  (analyze-import [:tuple @{:bc 1 :bl 1 :ec 23 :el 1}
+  (s/analyze-import [:tuple @{:bc 1 :bl 1 :ec 23 :el 1}
                    [:whitespace @{:bc 2 :bl 1 :ec 3 :el 1} " "]
                    [:symbol @{:bc 3 :bl 1 :ec 9 :el 1} "import"]
                    [:whitespace @{:bc 9 :bl 1 :ec 10 :el 1} " "]
@@ -2765,7 +2737,7 @@
 
   )
 
-(defn find-files-and-imports
+(defn s/find-files-and-imports
   [in-path]
   # assumes paths are full paths...
   # XXX: could check if we had abspath?
@@ -2797,11 +2769,11 @@
         (def import-paths (get imports a-path))
         (while (def i-zloc
                  (j/search-from cur-zloc |(match (j/node $) [:tuple]
-                                            (when (is-import? $)
+                                            (when (s/is-import? $)
                                               $))))
           (set cur-zloc (j/df-next i-zloc))
           (def i-node (j/node i-zloc))
-          (def i-stats (analyze-import i-node))
+          (def i-stats (s/analyze-import i-node))
           (def i-path (get i-stats :path))
           (assertf (string/has-prefix? "./" i-path)
                    "path should start with `./`, but found: %s" i-path)
@@ -2822,6 +2794,73 @@
     (helper (os/realpath file-path))
     #
     imports))
+
+(defn s/study
+  [start-path]
+  (def files-and-imports (s/find-files-and-imports start-path))
+  (u/maybe-dump :files-and-imports files-and-imports)
+  #
+  (def prefixes
+    (reduce (fn [acc i-stats]
+              (each [pth _ pfx] i-stats
+                (if-let [o-pfx (get acc pth)]
+                  (assertf (= pfx o-pfx)
+                           "prefixes don't match: %s != %s" pfx o-pfx)
+                  (put acc pth pfx)))
+              acc)
+            @{}
+            (values files-and-imports)))
+  #
+  prefixes)
+
+
+(def usage
+  ``
+  Usage: jell [<start-path> [<out-path> [<obj-path>]]]
+         jell [-h|--help]
+
+  Create a single `.janet` file from multiple files.
+
+  Parameters:
+
+    <start-path>                 path to starting file
+    <out-path>                   path to output file
+    <obj-path>                   path to temp directory
+
+  Defaults:
+
+    <start-path>                 src/main.janet
+    <out-path>                   j.out
+    <obj-path>                   obj
+
+  Options:
+
+    -h, --help                   show this output
+
+  Configuration (optional):
+
+    .jell.jdn                    configuration file
+
+  Example Invocations:
+
+    Create a single `.janet` file from multiple files:
+
+    $ jell src/main.janet output.janet
+
+    Same but use `tmp/` as an intermediate file directory:
+
+    $ jell src/main.janet output.janet tmp
+
+    With a suitable configuration file:
+
+    $ jell
+
+  Example `.jell.jdn` content:
+
+    {:start-path "src/main.janet"
+     :out-path "j.out"
+     :obj-path "obj"}
+  ``)
 
 ########################################################################
 
@@ -2858,72 +2897,45 @@
   #
   [start-path obj-path out-path])
 
-(defn doit
+(defn assimilate
   [opts]
   (def os (os/which))
   (def bs-land (or (= :windows os) (= :mingw os)))
   (def sep (if bs-land `\` "/"))
   (put opts :sep sep)
+  (put opts :bs-land bs-land)
   (def [start-path obj-path out-path] (get-full-paths opts))
-  (u/maybe-dump :stage "prepare"
-                :start-path start-path
-                :out-path out-path
-                :obj-path obj-path)
-  #
-  (def files-and-imports (find-files-and-imports start-path))
-  (u/maybe-dump :files-and-imports files-and-imports)
-  #
-  (def prefixes
-    (reduce (fn [acc i-stats]
-              (each [pth _ pfx] i-stats
-                (if-let [o-pfx (get acc pth)]
-                  (assertf (= pfx o-pfx)
-                           "prefixes don't match: %s != %s" pfx o-pfx)
-                  (put acc pth pfx)))
-              acc)
-            @{}
-            (values files-and-imports)))
-  #
-  (u/maybe-dump :prefixes prefixes)
-  # imported files: rename names and tweak import forms
-  (def [in-dir ifname] (u/split-path start-path))
-  (eachp [path prefix] prefixes
-    (def fname (string path ".janet"))
-    (def ipath (string in-dir sep fname))
-    (def opath (string obj-path sep fname))
-    (p/prepare prefix ipath opath))
-  # starting file: tweak import forms
-  (def in-src (slurp start-path))
-  (def in-tree (j/par in-src))
-  (var cur-zloc nil)
-  (set cur-zloc
-       (try
-         (j/zip-down in-tree)
-         ([e]
-           (eprintf e)
-           (eprintf "failed to create zipper from file: %s" start-path)
-           (os/exit 1))))
-  (def in-out-path (string obj-path sep ifname))
-  (spit in-out-path
-        (j/gen (j/root (p/tweak-import-forms cur-zloc))))
   (def perm
     (when (not bs-land) (os/stat start-path :permissions)))
-  (when perm
-    (os/chmod in-out-path perm))
-  # assemble
-  (def in-path in-out-path)
-  (u/maybe-dump :stage "assemble" :in-path in-path :out-path out-path)
+  (put opts :start-file-perm perm)
+  (u/maybe-dump :stage "study" :start-path start-path
+                :out-path out-path :obj-path obj-path)
+  # study the input files starting at start-path
+  (flycheck start-path)
+  (def prefixes (s/study start-path))
+  (def [in-dir in-name] (u/split-path start-path))
+  (eachp [path _] prefixes
+    (def ipath (string in-dir sep path ".janet"))
+    (flycheck ipath))
+  (u/maybe-dump :stage "prepare" :prefixes prefixes
+                :in-dir in-dir :in-name in-name
+                :obj-path obj-path)
+  # prepare imported files: rename names and tweak import forms
+  (p/prepare-imported in-dir obj-path prefixes opts)
+  # prepare starting file: tweak import forms
+  (def in-path (p/prepare-start start-path in-name obj-path opts))
+  # link
+  (u/maybe-dump :stage "link" :in-path in-path :out-path out-path)
   (l/link in-path out-path)
   (when (not bs-land)
     (os/chmod out-path perm)))
 
+########################################################################
+
 (defn main
   [_ & args]
   (def opts (a/parse-args args))
-  #
   (u/maybe-dump :opts opts)
-  #
-  (def {:rest the-args} opts)
   #
   (cond
     (get opts :help)
@@ -2932,7 +2944,7 @@
     (and (get opts :start-path)
          (get opts :obj-path)
          (get opts :out-path))
-    (doit opts)
+    (assimilate opts)
     #
     (do
       (eprint "please specify a start path and an output path")
