@@ -34,6 +34,7 @@
            # XXX
            {})))
 
+
 (def s/sep
   (if (= :windows (os/which))
     `\`
@@ -139,6 +140,7 @@
             (array/push all-results (merge item {:path path})))))))
   #
   [all-results hit-paths])
+
 
 # bl - begin line
 # bc - begin column
@@ -2217,6 +2219,7 @@
   )
 
 
+
 # XXX: doesn't handle atypical code that uses ordinary tuples for
 #      parameter lists
 (defn f/find-caller-docstring
@@ -2601,6 +2604,7 @@
   )
 
 
+
 (defn r/massage-param-str
   [in-str]
   (peg/replace-all ~(some (choice " " "\r" "\n"))
@@ -2757,6 +2761,7 @@
                       :paths src-filepaths :name name}))
 
 (def r/not-found-message "Nothing found")
+
 
 
 (def usage

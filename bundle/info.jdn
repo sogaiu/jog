@@ -20,7 +20,7 @@
            ["trigger-jeat.janet" "test/"]]}
   {:name "jell"
    :url "https://github.com/sogaiu/jell"
-   :tag "3d8e2284aa038b2a69056027b946b2c2517bc026"
+   :tag "b092b7b5a4353d2633560599904a600f59a36c40"
    :paths [["jell" "bin/"]]}]
 
  :binscripts
