@@ -8,16 +8,10 @@
    :tag "b9059643baa2d0a822f915e9f1b6cd80308d23c4"
    :prefix "bundle"
    :paths ["sbb.janet"]}
-  {:name "janet-ex-as-tests"
-   :url "https://github.com/sogaiu/janet-ex-as-tests"
-   :tag "3dfb3dd617879cd94651a8cb6c354c2de0bf0b3c"
-   :paths [["init.janet" "jeat/"]
-           ["location.janet" "jeat/"]
-           ["loc-jipper.janet" "jeat/"]
-           ["make-and-run-tests.janet" "jeat/"]
-           ["to-test.janet" "jeat/"]
-           ["zipper.janet" "jeat/"]
-           ["trigger-jeat.janet" "test/"]]}
+  {:name "niche"
+   :url "https://github.com/sogaiu/niche"
+   :tag "419933e4d6e27a6625bd3494aa71659ec8f36f25"
+   :paths [["niche.janet" "bin/"]]}
   {:name "jell"
    :url "https://github.com/sogaiu/jell"
    :tag "b092b7b5a4353d2633560599904a600f59a36c40"
