@@ -1,5 +1,3 @@
-#! /usr/bin/env janet
-
 (import ./args :as a)
 (import ./report :as r)
 

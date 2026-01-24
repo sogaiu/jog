@@ -14,8 +14,12 @@
    :paths [["niche.janet" "bin/"]]}
   {:name "jell"
    :url "https://github.com/sogaiu/jell"
-   :tag "b092b7b5a4353d2633560599904a600f59a36c40"
-   :paths [["jell" "bin/"]]}]
+   :tag "8df04804e4eab08e5353296694e5f3007a016dda"
+   :paths [["jell" "bin/"]]}
+  {:name "jipper"
+   :url "https://github.com/sogaiu/jipper"
+   :tag "6d17c063a0398c40f3704737c3536c51016c0afa"
+   :paths [["jipper.janet" "src/"]]}]
 
  :binscripts
  [{:main "jog"

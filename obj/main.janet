@@ -1,5 +1,3 @@
-#! /usr/bin/env janet
-
 (import ./args :prefix "")
 (import ./report :prefix "")
 
