@@ -3,24 +3,25 @@
     (if (or (= :windows os) (= :mingw os)) `\` "/")))
 
 (defn find-files
-  [dir &opt pred]
+  [dir &opt pred skips]
   (default pred identity)
+  (default skips (invert [".git"]))
   (def paths @[])
   (defn helper
     [a-dir]
     (each path (os/dir a-dir)
-      (def sub-path
-        (string a-dir sep path))
+      (def sub-path (string a-dir sep path))
       (case (os/stat sub-path :mode)
         :directory
-        (when (not= path ".git")
-          (when (not (os/stat (string sub-path sep ".gitrepo")))
-            (helper sub-path)))
+        (when (not (get skips path))
+          (helper sub-path))
         #
         :file
         (when (pred sub-path)
           (array/push paths sub-path)))))
+  #
   (helper dir)
+  #
   paths)
 
 (comment
@@ -31,8 +32,9 @@
 
 (defn clean-end-of-path
   [path a-sep]
-  (when (one? (length path))
+  (when (= 1 (length path))
     (break path))
+  #
   (if (string/has-suffix? a-sep path)
     (string/slice path 0 -2)
     path))
@@ -65,33 +67,27 @@
       (= :directory mode)
       (array/concat filepaths (find-files apath pred))
       #
-      (do
-        (eprintf "No such file or not an ordinary file or directory: %s"
-                 apath)
-        (os/exit 1))))
+      (errorf "Expected file or dir but found %n for: %s" mode apath)))
   #
   filepaths)
 
+# query-fn should return a dictionary
 (defn search-paths
-  [query-fn opts]
-  (def {:name name :paths src-paths} opts)
+  [paths query-fn opts &opt pattern]
   #
   (def all-results @[])
   (def hit-paths @[])
-  (each path src-paths
-    (def src (slurp path))
-    (when (pos? (length src))
-      (when (or (not name)
-                (string/find name src))
-        (array/push hit-paths path)
+  (each p paths
+    (def src (slurp p))
+    (when (< 0 (length src))
+      (when (or (not pattern) (string/find pattern src))
+        (array/push hit-paths p)
         (def results
-          (try
-            (query-fn src opts)
-            ([e]
-              (eprintf "search failed for: %s" path))))
+          (try (query-fn src opts)
+            ([e] (eprintf "search failed for: %s" p))))
         (when (and results (not (empty? results)))
           (each item results
-            (array/push all-results (merge item {:path path})))))))
+            (array/push all-results (merge item {:path p})))))))
   #
   [all-results hit-paths])
 

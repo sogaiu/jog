@@ -70,10 +70,9 @@
 
 (defn search-and-report
   [opts]
-  (def {:query-fn query-fn
-        :name name} opts)
+  (def {:paths paths :query-fn query-fn :pattern pattern} opts)
   #
-  (def [all-results _] (s/search-paths query-fn opts))
+  (def [all-results _] (s/search-paths paths query-fn opts pattern))
   (when (zero? (length all-results))
     (break false))
   #
@@ -137,8 +136,7 @@
   (def src-filepaths
     (s/collect-paths includes u/looks-like-janet?))
   #
-  (search-and-report {:query-fn f/find-docs
-                      :paths src-filepaths}))
+  (search-and-report {:query-fn f/find-docs :paths src-filepaths}))
 
 (defn do-doc-of
   [opts]
@@ -152,8 +150,8 @@
   (def src-filepaths
     (s/collect-paths includes u/looks-like-janet?))
   #
-  (search-and-report {:query-fn f/find-doc-of
-                      :paths src-filepaths :name name}))
+  (search-and-report {:query-fn f/find-doc-of :paths src-filepaths
+                      :pattern name}))
 
 (def not-found-message "Nothing found")
 

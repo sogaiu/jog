@@ -3,7 +3,7 @@
   (with [f (file/open path)]
     (def first-line (file/read f :line))
     (when first-line
-      # some .js files has very long first lines and can contain
+      # some .js files have very long first lines and can contain
       # a lot of strings...
       (and (string/find "bin/env" first-line)
            (string/find "janet" first-line)))))

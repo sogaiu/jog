@@ -21,7 +21,7 @@
 
     Show docstring(s) of `zip` in `jeat/zipper.janet`:
 
-    $ jog zip jeat/zipper.janet
+    $ jog zip src/jipper.janet
 
     Show docstring(s) of `zipper` under `./`:
 
