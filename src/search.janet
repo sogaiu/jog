@@ -50,14 +50,6 @@
 
   )
 
-(defn has-janet-shebang?
-  [path]
-  (with [f (file/open path)]
-    (def first-line (file/read f :line))
-    (when first-line
-      (and (string/find "env" first-line)
-           (string/find "janet" first-line)))))
-
 (defn collect-paths
   [includes &opt pred]
   (default pred identity)

@@ -1,5 +1,6 @@
-(import ./search :as s)
 (import ./find :as f)
+(import ./search :as s)
+(import ./utils :as u)
 
 (defn massage-param-str
   [in-str]
@@ -134,8 +135,7 @@
   (def includes the-args)
   # find .janet files
   (def src-filepaths
-    (s/collect-paths includes |(or (string/has-suffix? ".janet" $)
-                                   (s/has-janet-shebang? $))))
+    (s/collect-paths includes u/looks-like-janet?))
   #
   (search-and-report {:query-fn f/find-docs
                       :paths src-filepaths}))
@@ -150,8 +150,7 @@
   (def includes the-args)
   # find .janet files
   (def src-filepaths
-    (s/collect-paths includes |(or (string/has-suffix? ".janet" $)
-                                   (s/has-janet-shebang? $))))
+    (s/collect-paths includes u/looks-like-janet?))
   #
   (search-and-report {:query-fn f/find-doc-of
                       :paths src-filepaths :name name}))
