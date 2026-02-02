@@ -1,4 +1,5 @@
 (import ./args :prefix "")
+(import ./commands :prefix "")
 (import ./report :prefix "")
 
 (def usage
@@ -21,7 +22,7 @@
 
     Show docstring(s) of `zip` in `jeat/zipper.janet`:
 
-    $ jog zip jeat/zipper.janet
+    $ jog zip src/jipper.janet
 
     Show docstring(s) of `zipper` under `./`:
 
@@ -47,12 +48,12 @@
     (print usage)
     # enumerate docs for files and/or directories
     (get opts :enum-docs)
-    (let [results (r/do-all-docs opts)]
+    (let [results (c/do-all-docs opts)]
       (when (not results)
         (print r/not-found-message)))
     # base results on files and/or directories searching
     (get opts :paths-search)
-    (let [results (r/do-doc-of opts)]
+    (let [results (c/do-doc-of opts)]
       (when (not results)
         (print r/not-found-message)))
     # XXX: don't expect to get here

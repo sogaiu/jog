@@ -1,6 +1,4 @@
 (import ./find :prefix "")
-(import ./search :prefix "")
-(import ./utils :prefix "")
 
 (defn r/massage-param-str
   [in-str]
@@ -68,14 +66,8 @@
     #
     (errorf "unknown def-type: %n" def-type)))
 
-(defn r/search-and-report
-  [opts]
-  (def {:paths paths :query-fn query-fn :pattern pattern} opts)
-  #
-  (def [all-results _] (s/search-paths paths query-fn opts pattern))
-  (when (zero? (length all-results))
-    (break false))
-  #
+(defn r/report
+  [all-results]
   (print)
   (each r all-results
     (def {:path path :bl line-no :bc col-no
@@ -126,32 +118,6 @@
     (print))
   #
   all-results)
-
-(defn r/do-all-docs
-  [opts]
-  (def {:rest the-args} opts)
-  #
-  (def includes the-args)
-  # find .janet files
-  (def src-filepaths
-    (s/collect-paths includes u/looks-like-janet?))
-  #
-  (r/search-and-report {:query-fn f/find-docs :paths src-filepaths}))
-
-(defn r/do-doc-of
-  [opts]
-  (def {:rest the-args} opts)
-  #
-  (def name (get the-args 0))
-  (array/remove the-args 0)
-  #
-  (def includes the-args)
-  # find .janet files
-  (def src-filepaths
-    (s/collect-paths includes u/looks-like-janet?))
-  #
-  (r/search-and-report {:query-fn f/find-doc-of :paths src-filepaths
-                      :pattern name}))
 
 (def r/not-found-message "Nothing found")
 
