@@ -1,8 +1,8 @@
 (import ./find :as f)
+(import ./itemize :as i)
 (import ./report :as r)
 (import ./search :as s)
 (import ./utils :as u)
-(import ./visit :as v)
 
 (defn search-and-report
   [opts]
@@ -25,7 +25,7 @@
   (def src-filepaths
     (filter |(and (= :file (os/stat $ :mode))
                   (u/looks-like-janet? $))
-            (v/visit ;includes)))
+            (i/itemize ;includes)))
   #
   (search-and-report {:query-fn f/find-docs :paths src-filepaths}))
 
@@ -41,7 +41,7 @@
   (def src-filepaths
     (filter |(and (= :file (os/stat $ :mode))
                   (u/looks-like-janet? $))
-            (v/visit ;includes)))
+            (i/itemize ;includes)))
   #
   (search-and-report {:query-fn f/find-doc-of :paths src-filepaths
                       :pattern name}))
