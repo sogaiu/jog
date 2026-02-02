@@ -14,14 +14,14 @@ Options:
 
 Examples:
 
-  Show docstring(s) of `zip` in `jeat/zipper.janet`:
+  Show docstring(s) of `zip` in `src/jipper.janet`:
 
-  $ jog zip jeat/zipper.janet
+  $ jog zip src/jipper.janet
 
   Show docstring(s) of `zipper` under `./`:
 
   $ jog zipper .
 
-  Show all docstring(s) under `./`:
+  Show all docstring(s) under `data/`:
 
-  $ jog .
+  $ jog data

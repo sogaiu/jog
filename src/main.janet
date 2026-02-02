@@ -28,9 +28,9 @@
 
     $ jog zipper .
 
-    Show all docstring(s) under `./`:
+    Show all docstring(s) under `data/`:
 
-    $ jog .
+    $ jog data
   ``)
 
 (defn main

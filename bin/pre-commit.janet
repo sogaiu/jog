@@ -4,7 +4,7 @@
 
 ########################################################################
 
-(prin "running jell...") (flush)
+(prin "* running jell...") (flush)
 (def jell-exit ($ janet ./bin/jell))
 (assertf (zero? jell-exit)
          "jell exited: %d" jell-exit)
@@ -12,7 +12,7 @@
 
 ########################################################################
 
-(print "running niche...")
+(print "* running niche...")
 (def niche-exit ($ janet ./bin/niche.janet))
 (assertf (zero? niche-exit)
          "niche exited: %d" niche-exit)
@@ -20,12 +20,20 @@
 
 ########################################################################
 
-(print "trying some invocations...")
+(print "* updating README...")
+(def readme-update-ext ($ janet jog -h > README))
+(assertf (zero? readme-update-ext)
+         "updating README exited: %d" readme-update-ext)
+(print "done")
+
+########################################################################
+
+(print "* trying some invocations...")
 
 # sourced from jog -h output
 (def invocations
   ['[./jog zipper .]
-   '[./jog .]
+   '[./jog data]
    '[./jog zip src/jipper.janet]])
 
 (each cmd invocations
