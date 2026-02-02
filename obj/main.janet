@@ -20,7 +20,7 @@
 
   Examples:
 
-    Show docstring(s) of `zip` in `jeat/zipper.janet`:
+    Show docstring(s) of `zip` in `src/jipper.janet`:
 
     $ jog zip src/jipper.janet
 
