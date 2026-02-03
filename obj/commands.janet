@@ -1,5 +1,5 @@
+(import ./empathy :prefix "")
 (import ./find :prefix "")
-(import ./itemize :prefix "")
 (import ./report :prefix "")
 (import ./search :prefix "")
 (import ./utils :prefix "")
@@ -44,7 +44,7 @@
   (def src-filepaths
     (filter |(and (= :file (os/stat $ :mode))
                   (u/looks-like-janet? $))
-            (i/itemize ;includes)))
+            (em/itemize ;includes)))
   #
   (when (get opts :dump)
     (c/search-and-dump {:query-fn f/find-docs
@@ -65,7 +65,7 @@
   (def src-filepaths
     (filter |(and (= :file (os/stat $ :mode))
                   (u/looks-like-janet? $))
-            (i/itemize ;includes)))
+            (em/itemize ;includes)))
   #
   (when (get opts :dump)
     (c/search-and-dump {:query-fn f/find-doc-of

@@ -8,6 +8,10 @@
    :tag "b9059643baa2d0a822f915e9f1b6cd80308d23c4"
    :prefix "bundle"
    :paths ["sbb.janet"]}
+  {:name "empathy"
+   :url "https://github.com/sogaiu/empathy"
+   :tag "bc8dc194318a466c92ccaa3151290735adce0264"
+   :paths [["empathy.janet" "src/"]]}
   {:name "niche"
    :url "https://github.com/sogaiu/niche"
    :tag "419933e4d6e27a6625bd3494aa71659ec8f36f25"

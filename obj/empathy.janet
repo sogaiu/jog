@@ -1,4 +1,4 @@
-(defn path-join
+(defn em/path-join
   [& parts]
   (def sep
     (if-let [sep (dyn :path-fs-sep)]
@@ -15,27 +15,27 @@
   (let [sep (dyn :path-fs-sep)]
     (defer (setdyn :path-fs-sep sep)
       (setdyn :path-fs-sep "/")
-      (path-join "/tmp" "test.txt")))
+      (em/path-join "/tmp" "test.txt")))
   # =>
   "/tmp/test.txt"
 
   (let [sep (dyn :path-fs-sep)]
     (defer (setdyn :path-fs-sep sep)
       (setdyn :path-fs-sep "/")
-      (path-join "/tmp" "foo" "test.txt")))
+      (em/path-join "/tmp" "foo" "test.txt")))
   # =>
   "/tmp/foo/test.txt"
 
   (let [sep (dyn :path-fs-sep)]
     (defer (setdyn :path-fs-sep sep)
       (setdyn :path-fs-sep `\`)
-      (path-join "C:" "windows" "system32")))
+      (em/path-join "C:" "windows" "system32")))
   # =>
   `C:\windows\system32`
 
   )
 
-(defn make-itemizer
+(defn em/make-itemizer
   [& paths]
   (def todo-paths (reverse paths)) # pop used to process from end
   (def seen? @{})
@@ -48,25 +48,53 @@
         (yield p)
         (when (= :directory (os/stat p :mode))
           (each subp (reverse (os/dir p))
-            (array/push todo-paths (path-join p subp))))))))
+            (array/push todo-paths (em/path-join p subp))))))))
 
 (comment
 
-  (def v (make-visitor (dyn :syspath) "/etc/fonts"))
+  (def it (em/make-itemizer (dyn :syspath) "/etc/fonts"))
 
-  (each p v (pp p))
+  (each p it (pp p))
 
   )
 
-(defn itemize
+(comment
+
+  (do
+    (var res nil)
+    (each p (em/make-itemizer "bundle")
+      (when (string/has-suffix? "info.jdn" p)
+        (set res true)
+        (break)))
+    res)
+  # =>
+  true
+
+  )
+
+(defn em/itemize
   [& paths]
-  (def it (make-itemizer ;paths))
+  (def it (em/make-itemizer ;paths))
   #
   (seq [p :in it] p))
 
 (comment
 
-  (itemize (path-join (os/getenv "HOME") ".config"))
+  (em/itemize (em/path-join (os/getenv "HOME") ".config"))
+
+  )
+
+(comment
+
+  (do
+    (var res nil)
+    (each p (em/itemize ".")
+      (when (string/has-suffix? "empathy.janet" p)
+        (set res true)
+        (break)))
+    res)
+  # =>
+  true
 
   )
 
