@@ -49,12 +49,12 @@
     # enumerate docs for files and/or directories
     (get opts :enum-docs)
     (let [results (c/do-all-docs opts)]
-      (when (not results)
+      (when (and (not results) (not (get opts :dump)))
         (print r/not-found-message)))
     # base results on files and/or directories searching
     (get opts :paths-search)
     (let [results (c/do-doc-of opts)]
-      (when (not results)
+      (when (and (not results) (not (get opts :dump)))
         (print r/not-found-message)))
     # XXX: don't expect to get here
     (errorf "bug somewhere: args: %n opts: %n" args opts)))

@@ -4,6 +4,25 @@
 (import ./search :prefix "")
 (import ./utils :prefix "")
 
+########################################################################
+
+(defn c/search-and-dump
+  [opts]
+  (def {:paths paths :query-fn query-fn :pattern pattern} opts)
+  #
+  (def [all-results _]
+    (s/search-paths paths query-fn opts pattern))
+  # output could be done via (printf "%j" all-results), but the
+  # resulting output is harder to read and manipulate
+  (print "[")
+  (when (not (empty? all-results))
+    (each r all-results
+      (printf "[%n %n %n %n %n %n %n]"
+              (get r :path) (get r :bl) (get r :bc)
+              (get r :def-type) (get r :name) (get r :params-str)
+              (get r :text))))
+  (print "]\n"))
+
 (defn c/search-and-report
   [opts]
   (def {:paths paths :query-fn query-fn :pattern pattern} opts)
@@ -27,6 +46,11 @@
                   (u/looks-like-janet? $))
             (i/itemize ;includes)))
   #
+  (when (get opts :dump)
+    (c/search-and-dump {:query-fn f/find-docs
+                      :paths src-filepaths})
+    (break))
+  #
   (c/search-and-report {:query-fn f/find-docs :paths src-filepaths}))
 
 (defn c/do-doc-of
@@ -42,6 +66,12 @@
     (filter |(and (= :file (os/stat $ :mode))
                   (u/looks-like-janet? $))
             (i/itemize ;includes)))
+  #
+  (when (get opts :dump)
+    (c/search-and-dump {:query-fn f/find-doc-of
+                      :paths src-filepaths
+                      :pattern name})
+    (break))
   #
   (c/search-and-report {:query-fn f/find-doc-of :paths src-filepaths
                       :pattern name}))
