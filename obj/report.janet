@@ -119,5 +119,3 @@
   #
   all-results)
 
-(def r/not-found-message "Nothing found")
-
