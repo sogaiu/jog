@@ -109,19 +109,19 @@
             (when-let [ds-tbl (find-special-docstring (j/down parent-zloc))]
               (array/push results
                           (merge ds-tbl {:def-type (string head)
-                                         :found-name found-name})))
+                                         :name found-name})))
             #
             (get call-definers head)
             (when-let [ds-tbl (find-caller-docstring (j/down parent-zloc))]
               (array/push results
                           (merge ds-tbl {:def-type (string head)
-                                         :found-name found-name})))
+                                         :name found-name})))
             #
             (and (= 'defdyn head) (= 3 (length parsed)))
             (when-let [ds-tbl (find-defdyn-docstring (j/down parent-zloc))]
               (array/push results
                           (merge ds-tbl {:def-type (string head)
-                                         :found-name found-name})))
+                                         :name found-name})))
             # XXX: other cases?
             nil))))
     #
@@ -147,12 +147,12 @@
   # =>
   @[@{:bc 3 :bl 2
       :def-type "defn"
-      :found-name "smile"
+      :name "smile"
       :text `"I am a defn docstring."`
       :params-str "[y]"}
     @{:bc 3 :bl 7
       :def-type "defn-"
-      :found-name "smile"
+      :name "smile"
       :text `"I am a defn- docstring."`
       :params-str "[z]"}]
 
@@ -166,11 +166,11 @@
   # =>
   @[@{:bc 12 :bl 1
       :def-type "var"
-      :found-name "smile"
+      :name "smile"
       :text `"a docstring"`}
     @{:bc 13 :bl 3
       :def-type "var-"
-      :found-name "smile"
+      :name "smile"
       :text `"woohoo"`}]
 
   (find-doc-of
@@ -183,7 +183,7 @@
   # =>
   @[@{:bc 17 :bl 3
       :def-type "defdyn"
-      :found-name "*smile*"
+      :name "*smile*"
       :text `"smiling docstring"`}]
 
   (find-doc-of
@@ -201,7 +201,7 @@
   # =>
   @[@{:bc 3 :bl 2
       :def-type "defmacro"
-      :found-name "as-macro"
+      :name "as-macro"
       :text
       (string
         "``Use a function or macro literal `f` as a macro. This lets\n"
@@ -223,11 +223,11 @@
   # =>
   @[@{:bc 12 :bl 1
       :def-type "def"
-      :found-name "smile"
+      :name "smile"
       :text `"a docstring"`}
     @{:bc 3 :bl 4
       :def-type "defn"
-      :found-name "smile"
+      :name "smile"
       :text `"I am a docstring."`
       :params-str "[y]"}]
 
