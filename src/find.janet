@@ -97,7 +97,7 @@
       (def parsed
         (try
           (parse raw-code-str)
-          ([e]
+          ([_e]
             (eprintf "failed to parse: %s" raw-code-str))))
       (when parsed
         (def found-name (string (get parsed 1)))
@@ -252,7 +252,7 @@
     (def parsed
       (try
         (parse raw-code-str)
-        ([e]
+        ([_e]
           (eprintf "failed to parse: %s" raw-code-str))))
     (when (and parsed
                (if-not pred true (pred parsed)))

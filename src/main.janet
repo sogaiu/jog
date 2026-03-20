@@ -36,12 +36,6 @@
   [_ & args]
   (def opts (a/parse-args args))
   #
-  (def {:rest the-args} opts)
-  #
-  (def arg (get the-args 0))
-  #
-  (def root-bindings (all-bindings root-env))
-  #
   (cond
     (get opts :help)
     (print usage)

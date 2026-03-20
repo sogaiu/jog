@@ -5,25 +5,24 @@
  :vendored
  [{:name "some-bundle-bits"
    :url "https://github.com/sogaiu/some-bundle-bits"
-   :tag "b9059643baa2d0a822f915e9f1b6cd80308d23c4"
-   :prefix "bundle"
-   :paths ["sbb.janet"]}
+   :tag "70409ab34b7c762118e0d31efaa4d2f01d46fecf"
+   :paths [["sbb.janet" "bundle/"]]}
   {:name "empathy"
    :url "https://github.com/sogaiu/empathy"
    :tag "bc8dc194318a466c92ccaa3151290735adce0264"
    :paths [["empathy.janet" "src/"]]}
-  {:name "niche"
-   :url "https://github.com/sogaiu/niche"
-   :tag "419933e4d6e27a6625bd3494aa71659ec8f36f25"
-   :paths [["niche.janet" "bin/"]]}
   {:name "jell"
    :url "https://github.com/sogaiu/jell"
-   :tag "8df04804e4eab08e5353296694e5f3007a016dda"
+   :tag "c951427684ae6ee64582d28309f161b12050f11d"
    :paths [["jell" "bin/"]]}
   {:name "jipper"
    :url "https://github.com/sogaiu/jipper"
-   :tag "6d17c063a0398c40f3704737c3536c51016c0afa"
+   :tag "7e2876d4a4bad8cd080cf150230ecadc31ed9b20"
    :paths [["jipper.janet" "src/"]]}
+  {:name "niche"
+   :url "https://github.com/sogaiu/niche"
+   :tag "15f5746d95932b7c939aff2ccc6aa91633f2d5e4"
+   :paths [["niche.janet" "bin/"]]}
   {:name "spork"
    :url "https://github.com/janet-lang/spork"
    :tag "60110c3688c5687cc603159bcfa38d579f95a27d"

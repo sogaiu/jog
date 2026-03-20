@@ -11,7 +11,7 @@
         (array/push hit-paths p)
         (def results
           (try (query-fn src opts)
-            ([e] (eprintf "search failed for: %s" p))))
+            ([_e] (eprintf "search failed for: %s" p))))
         (when (and results (not (empty? results)))
           (each item results
             (array/push all-results (merge item {:path p})))))))
